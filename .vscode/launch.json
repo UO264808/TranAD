@@ -5,6 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: SkipGramNS",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--model",
+                "SkipGramNS",
+                "--dataset",
+                "SMD",
+                "--retrain",
+                "--less"
+            ]
+        },
+        {
             "name": "Python: OmniAnomaly SMAP less",
             "type": "python",
             "request": "launch",

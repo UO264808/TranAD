@@ -11,6 +11,43 @@ from src.dlutils import *
 from src.constants import *
 torch.manual_seed(1)
 
+## Word2Vec model designed to procces pairs of words (discretize)
+class SkipGramNS(nn.Module):
+    def __init__(self, feats) -> None:
+        super(SkipGramNS, self).__init__()
+        self.name = 'SkipGramNS'
+        self.feats = feats # Standarization purposes
+        self.lr = 0.05
+        self.vocab_size = 7
+        self.embed_size = 100
+        # Target word embeddings
+        self.w = nn.Embedding(self.vocab_size, self.embed_size, sparse=True)
+        # Context embeddings
+        self.c = nn.Embedding(self.vocab_size, self.embed_size, sparse=True)
+        # Linear output layer
+        # self.linear = nn.Linear(1, 1,)
+
+        # Initialize embeddings
+        self.init_emb()
+    
+    def init_emb(self):
+        nn.init.xavier_normal_(self.w.weight)
+        nn.init.xavier_normal_(self.c.weight)
+
+    def forward(self, tgt_word, ctx_word):
+        """
+        tgt_word: target word ID
+        ctx_word: context word ID
+        """
+        # Look up the embeddings for the target words
+        tgt_emb = self.w(tgt_word)
+        # Look up the embeddings for the context words
+        ctx_emb = self.c(ctx_word)
+
+        # Compute dot product
+        score = torch.dot(tgt_emb, ctx_emb)
+        return torch.sigmoid(score)
+
 ## Separate LSTM for each variable
 class LSTM_Univariate(nn.Module):
 	def __init__(self, feats):
