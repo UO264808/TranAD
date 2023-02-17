@@ -1,12 +1,15 @@
+import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import tensorflow as tf
-keras = tf.kera # small issue with Pylance and Tensorflow
+keras = tf.keras # small issue with Pylance and Tensorflow
 from keras.preprocessing import text
 from keras.preprocessing.sequence import skipgrams
+from tqdm import tqdm
 torch.manual_seed(1)
 
-class SkipGramNS(nn.module):
+class SkipGramNS(nn.Module):
     def __init__(self, vocab_size, embed_size) -> None:
         super(SkipGramNS, self).__init__()
         self.name = 'SkipGramNS'
@@ -17,7 +20,7 @@ class SkipGramNS(nn.module):
         # Context embeddings
         self.c = nn.Embedding(vocab_size, embed_size, sparse=True)
         # Linear output layer
-        self.linear = nn.Linear(1, 1,)
+        # self.linear = nn.Linear(1, 1,)
 
         # Initialize embeddings
         self.init_emb()
@@ -40,7 +43,7 @@ class SkipGramNS(nn.module):
 
         # Compute dot product
         score = torch.dot(tgt_emb, ctx_emb)
-        score = nn.LogSigmoid(score)
+        return torch.sigmoid(score)
 
 def generate_skipgrams(corpus, window_size, debug=False):
     """
@@ -60,11 +63,11 @@ def generate_skipgrams(corpus, window_size, debug=False):
     wids: 
     id2word: dictionary, provides informationabput the relationshipbetween words and IDs.
     """
-    # create and fit tokenizer with corpus
+    # Create and fit tokenizer with corpus
     tokenizer = text.Tokenizer()
     tokenizer.fit_on_texts(corpus)
 
-    # create dictionaries with relationship between Ids and words
+    # Create dictionaries with relationship between Ids and words
     word2id = tokenizer.word_index
     id2word = {v: k for k, v in word2id.items()}
 
@@ -76,11 +79,11 @@ def generate_skipgrams(corpus, window_size, debug=False):
     print('Vocabulary size:', vocab_size)
     print('Mos frequent words:', list(word2id.items())[-5:])
 
-    # generate skip-grams
+    # Generate skip-grams
     skip_grams = [
         skipgrams(wid, vocabulary_size=vocab_size, window_size=window_size) for wid in wids]
 
-    # show some skip-grams
+    # Show some skip-grams
     if debug:
         pairs, labels = skip_grams[0][0], skip_grams[0][1]
         for i in range(10):
@@ -95,17 +98,36 @@ def main():
     print('Running main: testing SkipGramNS')
     corpus = ['A B B C A D D E D A B B B C C C A C C B D E A A A']
     skip_grams, word2id, wids, id2word = generate_skipgrams(corpus, 3, debug=True)
-    VOCAB_SIZE = 5
+    VOCAB_SIZE = 5 + 1
     EMBEDDING_DIM = 100
     EPOCHS = 3
     model = SkipGramNS(VOCAB_SIZE, EMBEDDING_DIM)
-    optimizer = torch.optim.RMSprop(model.parameters(), lr=0.05, momentum=0.9)
-    criterion = nn.BCEWithLogitsLoss()
-    c_epoch=0
+    optimizer = torch.optim.SparseAdam(model.parameters(), lr=0.05)
+    loss = nn.MSELoss()
+    epoch = 0
     # training loop
-    while c_epoch <= EPOCHS:
-        loss = 0
-        for i, elem in enumerate(skip_grams):
-            # TODO 
+    for e in tqdm(list(range(epoch+1, epoch+EPOCHS+1))):
+        print('[+] Epoch nª {}'.format(e))
+        for i, pair in enumerate(skip_grams[0][0]):
+            # Prepare data
+            target_word = torch.tensor(pair[0])
+            context_word = torch.tensor(pair[1])
+            Y = torch.tensor(skip_grams[0][1][i])
 
+            # Compute the output from the model
+            # That is, the dot products between target embeddings
+            # and context embeddings.
+            scores = model(target_word, context_word)
 
+            # Compute loss
+            l = loss(scores, Y.float())
+            optimizer.zero_grad()
+            l.backward()
+            optimizer.step()
+
+            # Debug info
+            if i % 100 == 0:
+                print(' [+] Processed {} pairs'.format(i))
+
+if __name__ == "__main__":
+    main()
