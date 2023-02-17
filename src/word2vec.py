@@ -35,10 +35,8 @@ class SkipGramNS(nn.Module):
         ctx_word: context word ID
         """
         # Look up the embeddings for the target words
-        # shape: (batch size, embedding dimension)
         tgt_emb = self.w(tgt_word)
-        # Look up the embeddings for the positive and negative context words.
-        # shape: (batch size, nbr contexts, emb dim)
+        # Look up the embeddings for the context words
         ctx_emb = self.c(ctx_word)
 
         # Compute dot product
