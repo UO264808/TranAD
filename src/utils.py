@@ -46,14 +46,14 @@ def simple_discretize_dataset(data: torch.Tensor, n_letters: int=4):
     """
     Discretizes time series columns into chains of symbols. Specially designed for Word2Vec approach.
     """
-    dis_data = pd.DataFrame()
+    dis_data = np.empty((data.shape[0], data.shape[1]))
     for i in range(0, data.shape[1]):
         col = np.array(torch.index_select(data, 1, torch.tensor([i])))
         max_v = col.max()
         min_v = col.min()
         vfunc = np.vectorize(lambda x: str(chr(65+int((x-min_v)/(max_v-min_v+0.0001)*n_letters))))
         col = vfunc(col)
-        dis_data['dim_{}'.format(i)] = col
+        dis_data[:, i] = np.ravel(col)
     #for col_name in data.columns:
     #    max_v = data[col_name].max()
     #    min_v = data[col_name].min()
@@ -63,6 +63,7 @@ def simple_discretize_dataset(data: torch.Tensor, n_letters: int=4):
 
 
     # Combine all the columns into one column
+    data = pd.DataFrame(dis_data)
     data = data.apply(lambda x: ''.join(x.astype(str)), axis=1)
     data = pd.DataFrame(data, columns=['discretized_data'])
 
