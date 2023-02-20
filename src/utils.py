@@ -46,7 +46,7 @@ def getresults2(df, result):
     results2['f1*'] = 2 * results2['precision'] * results2['recall'] / (results2['precision'] + results2['recall'])
     return results2
 
-def simple_discretize_dataset(data: torch.Tensor, n_letters: int=4):
+def simple_discretize_dataset(data: torch.Tensor, train_length: int, n_letters: int=4):
     """
     Discretizes time series columns into chains of symbols. Specially designed for Word2Vec approach.
 
@@ -71,9 +71,29 @@ def simple_discretize_dataset(data: torch.Tensor, n_letters: int=4):
     # Combine all the columns into one column
     data = pd.DataFrame(dis_data)
     data = data.apply(lambda x: ''.join(x.astype(str)), axis=1)
-    data = pd.DataFrame(data, columns=['discretized_data'])
+    train_data = data.iloc[:train_length]
+    test_data = data.iloc[train_length:]
 
-    return data
+    return data, train_data, test_data
+
+def dataframe_to_corpus(data: pd.DataFrame):
+        # Convert Dataframe to a large string containing all words
+        corpus = []
+        smd_text = ""  # Empty string
+        # Fill corpus
+        for i in data:
+            smd_text += i
+            smd_text += " "
+
+        corpus.append(smd_text)
+
+        return corpus
+
+def obtain_vocab_size(corpus):
+    # Create and fit tokenizer with corpus
+    tokenizer = text.Tokenizer()
+    tokenizer.fit_on_texts(corpus)
+    return len(tokenizer.word_index)
 
 def generate_skipgrams(corpus, window_size, debug=False):
     """
@@ -107,7 +127,7 @@ def generate_skipgrams(corpus, window_size, debug=False):
                 for w in text.text_to_word_sequence(doc)] for doc in corpus]
 
     print('Vocabulary size:', vocab_size)
-    print('Mos frequent words:', list(word2id.items())[-5:])
+    print('Most frequent words:', list(word2id.items())[-5:])
 
     # Generate skip-grams
     skip_grams = [
@@ -116,7 +136,7 @@ def generate_skipgrams(corpus, window_size, debug=False):
     # Show some skip-grams
     if debug:
         pairs, labels = skip_grams[0][0], skip_grams[0][1]
-        for i in range(10):
+        for i in range(5):
             print("({:s} ({:d}), {:s} ({:d})) -> {:d}".format(
                 id2word[pairs[i][0]], pairs[i][0],
                 id2word[pairs[i][1]], pairs[i][1],

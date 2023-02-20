@@ -57,10 +57,10 @@ def load_model(modelname, dims):
     import src.models
     model_class = getattr(src.models, modelname)
     model = model_class(dims).double()
-    if model_class in ["SkipGramNS"]:
-        optimizer = torch.optim.SparseAdam(model.parameters(), lr=model.lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
-    else:	
+    optimizer = None
+    scheduler = None
+    if model.name not in ['SkipGramNS']:
+        # SkipGramNS model requires to define optimizer and sheduler after initialize embeddings 
         optimizer = torch.optim.AdamW(model.parameters() , lr=model.lr, weight_decay=1e-5)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
     fname = f'checkpoints/{args.model}_{args.dataset}/model.ckpt'
@@ -288,20 +288,20 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
         n = epoch + 1
         if training:
             # SkipGramNS training process
-            # dataO contains the generated training skipgrmans
-            for i, pair in enumerate(dataO[0][0]):
+            # Data contains the generated training skipgrmans
+            for i, pair in enumerate(data[0][0]):
                 # Prepare input
                 target_word = torch.tensor(pair[0])
                 context_word = torch.tensor(pair[1])
-                y = torch.tensor(dataO[0][1][i])
+                y = torch.tensor(data[0][1][i])
                 y_pred = model(target_word, context_word)
                 loss = l(y_pred, y.float())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
-                tqdm.write(f'Epoch {epoch},\tMSE = {np.mean(loss)}')
-                return _, optimizer.param_groups[0]['lr']
+                tqdm.write(f'Epoch {epoch},\tMSE = {loss}')
+                return loss.item, optimizer.param_groups[0]['lr']
         else:
             # SkipGramNS testing phase
             pass
@@ -332,10 +332,29 @@ if __name__ == '__main__':
     if model.name in ['SkipGramNS']:
         # Discretize dataset
         train_testD = torch.cat((trainD, testD), 0)
-        trainD, testD = simple_discretize_dataset(train_testD, n_letters=7)
+        full_data, trainD, testD = simple_discretize_dataset(train_testD, train_length=trainD.shape[0],  n_letters=model.n_letters)
+        train_corpus = dataframe_to_corpus(trainD)
+        # Full data is required to obtain vocab size
+        full_data = dataframe_to_corpus(full_data)
+        vocab_size = obtain_vocab_size(full_data)
         # Make use of unusued variables trainO and testO to generate skipgrams for training
-        trainO, word2id, wids, id2word = generate_skipgrams(trainD, model.n_window, debug=True)
+        trainD, word2id, wids, id2word = generate_skipgrams(train_corpus, model.n_window, debug=True)
+        # Load SkipGramNS embbedings with proper size and initialize optimizer and scheduler
+        model.init_emb(vocab_size)
+        optimizer = torch.optim.SparseAdam(model.parameters(), lr=model.lr)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
         # Generate test data by delaying the test time series by one unit to create the word pairs
+        test_corpus = dataframe_to_corpus(testD)
+        test_wids = [[]]
+        # Some test words do not seem to have appeared in train
+        for w in text.text_to_word_sequence(test_corpus[0]):
+            if not w in word2id:
+                word2id[w] = len(word2id)+1
+            test_wids[0].append(word2id[w])
+        # The context is the previous point
+        testD = [
+            torch.tensor(test_wids[0][1:]),
+            torch.tensor(test_wids[0][:-1])]
         
     ### Training phase
     if not args.test:
