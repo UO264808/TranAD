@@ -283,6 +283,28 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
                 if isinstance(z, tuple): z = z[1]
             loss = l(z, elem)[0]
             return loss.detach().numpy(), z.detach().numpy()[0]
+    elif 'SkipGramNS' in model.name:
+        l = nn.MSELoss()
+        n = epoch + 1
+        if training:
+            # SkipGramNS training process
+            # dataO contains the generated training skipgrmans
+            for i, pair in enumerate(dataO[0][0]):
+                # Prepare input
+                target_word = torch.tensor(pair[0])
+                context_word = torch.tensor(pair[1])
+                y = torch.tensor(dataO[0][1][i])
+                y_pred = model(target_word, context_word)
+                loss = l(y_pred, y.float())
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                scheduler.step()
+                tqdm.write(f'Epoch {epoch},\tMSE = {np.mean(loss)}')
+                return _, optimizer.param_groups[0]['lr']
+        else:
+            # SkipGramNS testing phase
+            pass
     else:
         y_pred = model(data)
         loss = l(y_pred, data)
@@ -310,8 +332,11 @@ if __name__ == '__main__':
     if model.name in ['SkipGramNS']:
         # Discretize dataset
         train_testD = torch.cat((trainD, testD), 0)
-        trainD,testD = simple_discretize_dataset(train_testD, n_letters=7)
-
+        trainD, testD = simple_discretize_dataset(train_testD, n_letters=7)
+        # Make use of unusued variables trainO and testO to generate skipgrams for training
+        trainO, word2id, wids, id2word = generate_skipgrams(trainD, model.n_window, debug=True)
+        # Generate test data by delaying the test time series by one unit to create the word pairs
+        
     ### Training phase
     if not args.test:
         print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')

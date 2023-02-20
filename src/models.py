@@ -17,6 +17,7 @@ class SkipGramNS(nn.Module):
         super(SkipGramNS, self).__init__()
         self.name = 'SkipGramNS'
         self.feats = feats # Standarization purposes
+        self.n_window = 7
         self.lr = 0.05
         self.vocab_size = 7
         self.embed_size = 100
