@@ -300,11 +300,16 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
-                tqdm.write(f'Epoch {epoch},\tMSE = {loss}')
-                return loss.item, optimizer.param_groups[0]['lr']
+            tqdm.write(f'Epoch {epoch},\tMSE = {loss}')
+            return loss.detach().numpy(), optimizer.param_groups[0]['lr']
         else:
-            # SkipGramNS testing phase
-            pass
+            # SkipGramNS testing phase 
+            y_pred = np.empty(data[0].shape[0])
+            for i in range(0, data[0].shape[0]):
+                target_word = torch.tensor(data[0][i])
+                context_word = torch.tensor(data[1][i])
+                y_pred[i] = model(target_word, context_word)
+            return None, y_pred
     else:
         y_pred = model(data)
         loss = l(y_pred, data)
@@ -316,7 +321,7 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
             scheduler.step()
             return loss.item(), optimizer.param_groups[0]['lr']
         else:
-            return loss.detach().numpy(), y_pred.detach().numpy()
+            return loss.detach().numlabelspy(), y_pred.detach().numpy()
 
 if __name__ == '__main__':
     train_loader, test_loader, labels = load_dataset(args.dataset)
@@ -330,38 +335,22 @@ if __name__ == '__main__':
     if model.name in ['Attention', 'DAGMM', 'USAD', 'MSCRED', 'CAE_M', 'GDN', 'MTAD_GAT', 'MAD_GAN'] or 'TranAD' in model.name: 
         trainD, testD = convert_to_windows(trainD, model), convert_to_windows(testD, model)
     if model.name in ['SkipGramNS']:
-        # Discretize dataset
-        train_testD = torch.cat((trainD, testD), 0)
-        full_data, trainD, testD = simple_discretize_dataset(train_testD, train_length=trainD.shape[0],  n_letters=model.n_letters)
-        train_corpus = dataframe_to_corpus(trainD)
-        # Full data is required to obtain vocab size
-        full_data = dataframe_to_corpus(full_data)
-        vocab_size = obtain_vocab_size(full_data)
-        # Make use of unusued variables trainO and testO to generate skipgrams for training
-        trainD, word2id, wids, id2word = generate_skipgrams(train_corpus, model.n_window, debug=True)
+        # Discretize train/test data and obtain vocabulary size
+        skip_grams, trainD, testD, vocab_size = prepare_discretized_data(trainD, testD, model, debug=True)
         # Load SkipGramNS embbedings with proper size and initialize optimizer and scheduler
-        model.init_emb(vocab_size)
+        model.init_emb(vocab_size + 1)
         optimizer = torch.optim.SparseAdam(model.parameters(), lr=model.lr)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
-        # Generate test data by delaying the test time series by one unit to create the word pairs
-        test_corpus = dataframe_to_corpus(testD)
-        test_wids = [[]]
-        # Some test words do not seem to have appeared in train
-        for w in text.text_to_word_sequence(test_corpus[0]):
-            if not w in word2id:
-                word2id[w] = len(word2id)+1
-            test_wids[0].append(word2id[w])
-        # The context is the previous point
-        testD = [
-            torch.tensor(test_wids[0][1:]),
-            torch.tensor(test_wids[0][:-1])]
         
     ### Training phase
     if not args.test:
         print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
         num_epochs = 5; e = epoch + 1; start = time()
         for e in tqdm(list(range(epoch+1, epoch+num_epochs+1))):
-            lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
+            if model.name in ['SkipGramNS']:
+                lossT, lr = backprop(e, model, skip_grams, trainO, optimizer, scheduler)
+            else:
+                lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
             accuracy_list.append((lossT, lr))
         print(color.BOLD+'Training time: '+"{:10.4f}".format(time()-start)+' s'+color.ENDC)
         save_model(model, optimizer, scheduler, e, accuracy_list)
@@ -375,23 +364,31 @@ if __name__ == '__main__':
 
     ### Plot curves
     if not args.test:
-        if 'TranAD' in model.name: testO = torch.roll(testO, 1, 0) 
-        plotter(f'{args.model}_{args.dataset}', testO, y_pred, loss, labels)
+        if 'TranAD' in model.name: testO = torch.roll(testO, 1, 0)
+        if model.name not in ['SkipGramNS']:
+            plotter(f'{args.model}_{args.dataset}', testO, y_pred, loss, labels)
 
     ### Scores
     df = pd.DataFrame()
-    lossT, _ = backprop(0, model, trainD, trainO, optimizer, scheduler, training=False)
-    for i in range(loss.shape[1]):
-        lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
-        result, pred = pot_eval(lt, l, ls); preds.append(pred)
-        df = df.append(result, ignore_index=True)
-    # preds = np.concatenate([i.reshape(-1, 1) + 0 for i in preds], axis=1)
-    # pd.DataFrame(preds, columns=[str(i) for i in range(10)]).to_csv('labels.csv')
-    lossTfinal, lossFinal = np.mean(lossT, axis=1), np.mean(loss, axis=1)
+    lossT, yt_pred = backprop(0, model, trainD, trainO, optimizer, scheduler, training=False)
     labelsFinal = (np.sum(labels, axis=1) >= 1) + 0
-    result, _ = pot_eval(lossTfinal, lossFinal, labelsFinal)
-    result.update(hit_att(loss, labels))
-    result.update(ndcg(loss, labels))
+    if model.name in ['SkipGramNS']:
+        labelsFinal = labelsFinal[1:]
+        # With SkipGramNS we apply the POT over the perplexity scores
+        yt_perplex = estimate_perplexity(yt_pred)
+        y_perplex = estimate_perplexity(y_pred)
+        result, pred = pot_eval(yt_perplex, y_perplex, labelsFinal)
+    else:
+        for i in range(loss.shape[1]):
+            lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
+            result, pred = pot_eval(lt, l, ls); preds.append(pred)
+            df = df.append(result, ignore_index=True)
+        # preds = np.concatenate([i.reshape(-1, 1) + 0 for i in preds], axis=1)
+        # pd.DataFrame(preds, columns=[str(i) for i in range(10)]).to_csv('labels.csv')
+        lossTfinal, lossFinal = np.mean(lossT, axis=1), np.mean(loss, axis=1)
+        result, _ = pot_eval(lossTfinal, lossFinal, labelsFinal)
+        result.update(hit_att(loss, labels))
+        result.update(ndcg(loss, labels))
     print(df)
     pprint(result)
     # pprint(getresults2(df, result))

@@ -46,7 +46,42 @@ def getresults2(df, result):
     results2['f1*'] = 2 * results2['precision'] * results2['recall'] / (results2['precision'] + results2['recall'])
     return results2
 
-def simple_discretize_dataset(data: torch.Tensor, train_length: int, n_letters: int=4):
+def prepare_discretized_data(train_data, test_data, model, debug=False):
+    # Discretize dataset
+    train_test = torch.cat((train_data, test_data), 0)
+    full_data, train_data, test_data = simple_discretize_dataset(train_test, train_length=train_data.shape[0],  n_letters=model.n_letters)
+    train_corpus = dataframe_to_corpus(train_data)
+
+    # Full data is required to obtain vocabulary size
+    full_data = dataframe_to_corpus(full_data)
+    vocab_size = obtain_vocab_size(full_data)
+
+    # Generate skipgrams for training
+    skip_grams, word2id, wids, id2word = generate_skipgrams(train_corpus, model.n_window, debug)
+
+    # Generate word pair for POT evaluation
+    train_data = [
+        torch.tensor(wids[0][1:]),
+        torch.tensor(wids[0][:-1])]
+
+    # Generate test data by delaying the test time series by one unit to create the word pairs
+    test_corpus = dataframe_to_corpus(test_data)
+    test_wids = [[]]
+
+    # Some test words do not seem to have appeared in train
+    for w in text.text_to_word_sequence(test_corpus[0]):
+        if not w in word2id:
+            word2id[w] = len(word2id) + 1
+        test_wids[0].append(word2id[w])
+    
+    # The context in the testing set is the previous point
+    test_data = [
+        torch.tensor(test_wids[0][1:]),
+        torch.tensor(test_wids[0][:-1])]
+
+    return skip_grams, train_data, test_data, vocab_size
+
+def simple_discretize_dataset(data, train_length, n_letters=5):
     """
     Discretizes time series columns into chains of symbols. Specially designed for Word2Vec approach.
 
@@ -89,10 +124,12 @@ def dataframe_to_corpus(data: pd.DataFrame):
 
         return corpus
 
-def obtain_vocab_size(corpus):
-    # Create and fit tokenizer with corpus
+def obtain_vocab_size(corpus, debug=False):
+    # Create and fit tokenizer with a given corpus
     tokenizer = text.Tokenizer()
     tokenizer.fit_on_texts(corpus)
+    if debug:
+        print('Vocabulary size:', len(tokenizer.word_index))
     return len(tokenizer.word_index)
 
 def generate_skipgrams(corpus, window_size, debug=False):
@@ -125,8 +162,6 @@ def generate_skipgrams(corpus, window_size, debug=False):
 
     wids = [[word2id[w]
                 for w in text.text_to_word_sequence(doc)] for doc in corpus]
-
-    print('Vocabulary size:', vocab_size)
     print('Most frequent words:', list(word2id.items())[-5:])
 
     # Generate skip-grams
@@ -143,3 +178,8 @@ def generate_skipgrams(corpus, window_size, debug=False):
                 labels[i]))
 
     return skip_grams, word2id, wids, id2word
+
+def estimate_perplexity(y_pred):
+    # Since we are working with pairs of words, this is a bigram
+    # High probability will be translated into less perplex
+    return (1.0/y_pred)
