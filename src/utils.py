@@ -8,6 +8,8 @@ import tensorflow as tf
 keras = tf.keras
 from keras.preprocessing import text
 from keras.preprocessing.sequence import skipgrams
+tf.random.set_seed(1)
+np.random.seed(1)
 
 class color:
     HEADER = '\033[95m'

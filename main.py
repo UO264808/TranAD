@@ -300,8 +300,8 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
-            tqdm.write(f'Epoch {epoch},\tMSE = {loss}')
-            return loss.detach().numpy(), optimizer.param_groups[0]['lr']
+            tqdm.write(f'Epoch {epoch},\tMSE = {loss.detach().numpy()}')
+            return np.mean(loss.detach().numpy()), optimizer.param_groups[0]['lr']
         else:
             # SkipGramNS testing phase 
             y_pred = np.empty(data[0].shape[0])

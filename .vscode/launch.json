@@ -27,7 +27,8 @@
                 "SkipGramNS",
                 "--dataset",
                 "SMD",
-                "--retrain"
+                "--retrain",
+                "--less"
             ]
         },
         {
