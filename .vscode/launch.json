@@ -16,6 +16,22 @@
             ]
         },
         {
+            "name": "Python: SkipGramNS_Univ SMD less",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--model",
+                "SkipGramNS_Univariate",
+                "--dataset",
+                "SMD",
+                "--retrain",
+                "--less"
+            ]
+        },
+        {
             "name": "Python: SkipGramNS",
             "type": "python",
             "request": "launch",
@@ -73,6 +89,22 @@
             "args": [
                 "--model",
                 "OmniAnomaly",
+                "--dataset",
+                "SMD",
+                "--retrain",
+                "--less"
+            ]
+        },
+        {
+            "name": "Python: LSTM_Univariate SMD less",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--model",
+                "LSTM_Univariate",
                 "--dataset",
                 "SMD",
                 "--retrain",

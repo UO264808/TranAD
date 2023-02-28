@@ -59,7 +59,7 @@ def load_model(modelname, dims):
     model = model_class(dims).double()
     optimizer = None
     scheduler = None
-    if model.name not in ['SkipGramNS']:
+    if model.name not in ['SkipGramNS', 'SkipGramNS_Univariate']:
         # SkipGramNS model requires to define optimizer and sheduler after initialize embeddings 
         optimizer = torch.optim.AdamW(model.parameters() , lr=model.lr, weight_decay=1e-5)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
@@ -341,6 +341,8 @@ if __name__ == '__main__':
         model.init_emb(vocab_size + 1)
         optimizer = torch.optim.SparseAdam(model.parameters(), lr=model.lr)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
+    if model.name in ['SkipGramNS_Univariate']:
+        skip_grams, trainD, testD, vocab_size = prepare_discretized_data2(trainD, testD, model, labels.shape[1], debug=True)
         
     ### Training phase
     if not args.test:

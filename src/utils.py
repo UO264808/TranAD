@@ -83,9 +83,19 @@ def prepare_discretized_data(train_data, test_data, model, debug=False):
 
     return skip_grams, train_data, test_data, vocab_size
 
+def prepare_discretized_data2(train_data, test_data, model, n_feats, debug=False):
+    # Discretize dataset
+    train_test = torch.cat((train_data, test_data), 0)
+    full_data, train_data, test_data = simple_discretize_dataset2(train_test, train_length=train_data.shape[0],  n_letters=model.n_letters)
+    
+    
+
+    return 0
+
+
 def simple_discretize_dataset(data, train_length, n_letters=5):
     """
-    Discretizes time series columns into chains of symbols. Specially designed for Word2Vec approach.
+    Discretizes time series columns into chains of symbols. Specially designed for Word2Vec SkipGramNS approach.
 
     Parameters:
     -----------
@@ -111,6 +121,20 @@ def simple_discretize_dataset(data, train_length, n_letters=5):
     train_data = data.iloc[:train_length]
     test_data = data.iloc[train_length:]
 
+    return data, train_data, test_data
+
+def simple_discretize_dataset2(data, train_length, n_letters=5):
+    dis_data = np.empty((data.shape[0], data.shape[1]), dtype=object)
+    for i in range(0, data.shape[1]):
+        col = np.array(torch.index_select(data, 1, torch.tensor([i])))
+        max_v = col.max()
+        min_v = col.min()
+        vfunc = np.vectorize(lambda x: str(chr(65+int((x-min_v)/(max_v-min_v+0.0001)*n_letters))))
+        col = vfunc(col)
+        dis_data[:, i] = col.squeeze()
+    data = pd.DataFrame(dis_data)  
+    train_data = data.iloc[:train_length]
+    test_data = data.iloc[train_length:]
     return data, train_data, test_data
 
 def dataframe_to_corpus(data: pd.DataFrame):

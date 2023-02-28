@@ -11,6 +11,21 @@ from src.dlutils import *
 from src.constants import *
 torch.manual_seed(1)
 
+class SkipGramNS_Univariate(nn.Module):
+    def __init__(self, feats) -> None:
+        super(SkipGramNS_Univariate, self).__init__()
+        self.name = 'SkipGramNS_Univariate'
+        self.feats = feats # Standarization purposes
+        self.n_window = 7
+        self.lr = 0.05
+        self.embed_size = 38
+        self.n_letters = 7
+        #self.models = nn.ModuleList(SGNS_one() for i in range(feats))
+
+    def forward(self, x):
+        pass
+
+
 ## Word2Vec model designed to procces pairs of words (discretize)
 class SkipGramNS(nn.Module):
     def __init__(self, feats) -> None:
