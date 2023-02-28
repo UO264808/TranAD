@@ -7,9 +7,73 @@ import dgl
 from dgl.nn import GATConv
 from torch.nn import TransformerEncoder
 from torch.nn import TransformerDecoder
+import tensorflow as tf
+keras = tf.keras
+from keras.layers import Dense, Embedding, Reshape, dot
+from keras.models import Model, Sequential, load_model
+from keras.preprocessing import text
 from src.dlutils import *
 from src.constants import *
 torch.manual_seed(1)
+tf.random.set_seed(1)
+np.random.seed(1)
+
+
+class SkipGramNS_Keras():
+    def __init__(self, feats) -> None:
+        self.name = 'SkipGramNS_Keras'
+        self.feats = feats
+        self.n_window = 7
+        self.embed_size = 38
+        self.n_letters = 7
+        self.model = None
+
+    def init_model(self, vocab_size):
+        word_model = Sequential()
+        word_model.add(Embedding(vocab_size, self.embed_size,
+                                 embeddings_initializer="glorot_uniform",
+                                 input_length=1))
+        word_model.add(Reshape((self.embed_size,)))
+
+        context_model = Sequential()
+        context_model.add(Embedding(vocab_size+1, self.embed_size,
+                                    embeddings_initializer="glorot_uniform",
+                                    input_length=1))
+        context_model.add(Reshape((self.embed_size,)))
+
+        merged_output = dot([word_model.output, context_model.output], axes=1)
+        model_combined = Sequential()
+        model_combined.add(
+            Dense(1, kernel_initializer="glorot_uniform", activation="sigmoid"))
+        final_model = Model(
+            [word_model.input, context_model.input], model_combined(merged_output))
+        final_model.compile(loss="mean_squared_error", optimizer="rmsprop")
+
+        # Print summary
+        print(final_model.summary())
+
+        self.model = final_model
+    
+    def train(self, skip_grams, epochs):
+        for epoch in range(0, epochs):
+            loss = 0
+            for i, elem in enumerate(skip_grams):
+                pair_first_elem = np.array(
+                    list(zip(*elem[0]))[0], dtype='int32')
+                pair_second_elem = np.array(
+                    list(zip(*elem[0]))[1], dtype='int32')
+                labels = np.array(elem[1], dtype='int32')
+                X = [pair_first_elem, pair_second_elem]
+                Y = labels
+                if i % 10000 == 0:
+                    print(
+                        'Processed {} (skip_first, skip_second, relevance) pairs'.format(i))
+                loss += self.model.train_on_batch(X, Y)
+            print('Epoch:', epoch, 'Loss:', loss)
+        return loss
+    
+    def evaluate(self, test_data):
+        return self.model.predict(test_data)
 
 ## Word2Vec model designed to procces pairs of words (discretize)
 class SkipGramNS(nn.Module):

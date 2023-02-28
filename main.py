@@ -56,10 +56,13 @@ def save_model(model, optimizer, scheduler, epoch, accuracy_list):
 def load_model(modelname, dims):
     import src.models
     model_class = getattr(src.models, modelname)
-    model = model_class(dims).double()
+    if modelname in ['SkipGramNS_Keras']:
+        model = model_class(dims)
+    else:
+        model = model_class(dims).double()
     optimizer = None
     scheduler = None
-    if model.name not in ['SkipGramNS']:
+    if model.name not in ['SkipGramNS', 'SkipGramNS_Keras']:
         # SkipGramNS model requires to define optimizer and sheduler after initialize embeddings 
         optimizer = torch.optim.AdamW(model.parameters() , lr=model.lr, weight_decay=1e-5)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
@@ -283,7 +286,7 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
                 if isinstance(z, tuple): z = z[1]
             loss = l(z, elem)[0]
             return loss.detach().numpy(), z.detach().numpy()[0]
-    elif 'SkipGramNS' in model.name:
+    elif model.name in ['SkipGramNS']:
         l = nn.MSELoss()
         n = epoch + 1
         if training:
@@ -310,6 +313,13 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
                 context_word = torch.tensor(data[1][i])
                 y_pred[i] = model(target_word, context_word)
             return None, y_pred
+    elif model.name in ['SkipGramNS_Keras']:
+        if training:
+            loss = model.train(data, epoch)
+            return loss, None
+        else:
+            y_pred = model.evaluate(data)
+            return None, y_pred.squeeze()
     else:
         y_pred = model(data)
         loss = l(y_pred, data)
@@ -341,38 +351,46 @@ if __name__ == '__main__':
         model.init_emb(vocab_size + 1)
         optimizer = torch.optim.SparseAdam(model.parameters(), lr=model.lr)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
-        
+    if model.name in ['SkipGramNS_Keras']:
+        # Discretize train/test data and obtain vocabulary size
+        skip_grams, trainD, testD, vocab_size = prepare_discretized_data_keras(trainD, testD, model, debug=True)
+        model.init_model(vocab_size + 1)
+
     ### Training phase
     if not args.test:
         print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
-        num_epochs = 5; e = epoch + 1; start = time()
-        for e in tqdm(list(range(epoch+1, epoch+num_epochs+1))):
-            if model.name in ['SkipGramNS']:
-                lossT, lr = backprop(e, model, skip_grams, trainO, optimizer, scheduler)
-            else:
-                lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
-            accuracy_list.append((lossT, lr))
-        print(color.BOLD+'Training time: '+"{:10.4f}".format(time()-start)+' s'+color.ENDC)
-        save_model(model, optimizer, scheduler, e, accuracy_list)
-        plot_accuracies(accuracy_list, f'{args.model}_{args.dataset}')
+        if model.name in ['SkipGramNS_Keras']:
+            loss, _ = backprop(5, model, skip_grams, trainO, optimizer, scheduler)
+        else:
+            num_epochs = 5; e = epoch + 1; start = time()
+            for e in tqdm(list(range(epoch+1, epoch+num_epochs+1))):
+                if model.name in ['SkipGramNS']:
+                    lossT, lr = backprop(e, model, skip_grams, trainO, optimizer, scheduler)
+                else:
+                    lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
+                accuracy_list.append((lossT, lr))
+            print(color.BOLD+'Training time: '+"{:10.4f}".format(time()-start)+' s'+color.ENDC)
+            save_model(model, optimizer, scheduler, e, accuracy_list)
+            plot_accuracies(accuracy_list, f'{args.model}_{args.dataset}')
 
     ### Testing phase
-    torch.zero_grad = True
-    model.eval()
+    if model.name not in ['SkipGramNS_Keras']:
+        torch.zero_grad = True
+        model.eval()
     print(f'{color.HEADER}Testing {args.model} on {args.dataset}{color.ENDC}')
     loss, y_pred = backprop(0, model, testD, testO, optimizer, scheduler, training=False)
 
     ### Plot curves
     if not args.test:
         if 'TranAD' in model.name: testO = torch.roll(testO, 1, 0)
-        if model.name not in ['SkipGramNS']:
+        if model.name not in ['SkipGramNS', 'SkipGramNS_Keras']:
             plotter(f'{args.model}_{args.dataset}', testO, y_pred, loss, labels)
 
     ### Scores
     df = pd.DataFrame()
     lossT, yt_pred = backprop(0, model, trainD, trainO, optimizer, scheduler, training=False)
     labelsFinal = (np.sum(labels, axis=1) >= 1) + 0
-    if model.name in ['SkipGramNS']:
+    if model.name in ['SkipGramNS', 'SkipGramNS_Keras']:
         labelsFinal = labelsFinal[1:]
         # With SkipGramNS we apply the POT over the perplexity scores
         yt_perplex = estimate_perplexity(yt_pred)

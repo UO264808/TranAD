@@ -16,6 +16,22 @@
             ]
         },
         {
+            "name": "Python: SkipGramNS_Keras",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--model",
+                "SkipGramNS_Keras",
+                "--dataset",
+                "SMD",
+                "--retrain",
+                "--less"
+            ]
+        },
+        {
             "name": "Python: SkipGramNS",
             "type": "python",
             "request": "launch",
@@ -27,22 +43,6 @@
                 "SkipGramNS",
                 "--dataset",
                 "SMD",
-                "--retrain",
-                "--less"
-            ]
-        },
-        {
-            "name": "Python: OmniAnomaly SMAP less",
-            "type": "python",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--model",
-                "OmniAnomaly",
-                "--dataset",
-                "SMAP",
                 "--retrain",
                 "--less"
             ]
