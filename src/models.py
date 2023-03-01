@@ -14,10 +14,6 @@ from keras.models import Model, Sequential, load_model
 from keras.preprocessing import text
 from src.dlutils import *
 from src.constants import *
-torch.manual_seed(1)
-tf.random.set_seed(1)
-np.random.seed(1)
-
 
 class SkipGramNS_Keras():
     def __init__(self, feats) -> None:

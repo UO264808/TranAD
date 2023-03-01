@@ -1,5 +1,6 @@
 import pickle
 import os
+import random
 import pandas as pd
 from tqdm import tqdm
 from src.models import *
@@ -334,6 +335,13 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
             return loss.detach().numlabelspy(), y_pred.detach().numpy()
 
 if __name__ == '__main__':
+    ## Fix required random seeds
+    random.seed(1)
+    torch.manual_seed(1)
+    tf.random.set_seed(1)
+    np.random.seed(1)
+
+    ## Load data and model
     train_loader, test_loader, labels = load_dataset(args.dataset)
     if args.model in ['MERLIN']:
         eval(f'run_{args.model.lower()}(test_loader, labels, args.dataset)')
@@ -360,7 +368,7 @@ if __name__ == '__main__':
     if not args.test:
         print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
         if model.name in ['SkipGramNS_Keras']:
-            loss, _ = backprop(5, model, skip_grams, trainO, optimizer, scheduler)
+            loss, _ = backprop(100, model, skip_grams, trainO, optimizer, scheduler)
         else:
             num_epochs = 5; e = epoch + 1; start = time()
             for e in tqdm(list(range(epoch+1, epoch+num_epochs+1))):
