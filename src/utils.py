@@ -233,6 +233,11 @@ def generate_skipgrams(corpus, window_size, debug=False):
                 for w in text.text_to_word_sequence(doc)] for doc in corpus]
     print('Most frequent words:', list(word2id.items())[-5:])
 
+    #import csv
+    #with open('tokenizer_machine-1-1.csv','w') as f:
+    #    w = csv.writer(f)
+    #    w.writerows(tokenizer.word_counts.items())
+
     # Generate skip-grams
     skip_grams = [
         skipgrams(wid, vocabulary_size=vocab_size, window_size=window_size) for wid in wids]

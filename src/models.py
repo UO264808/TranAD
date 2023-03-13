@@ -43,7 +43,7 @@ class SkipGramNS_Keras():
             Dense(1, kernel_initializer="glorot_uniform", activation="sigmoid"))
         final_model = Model(
             [word_model.input, context_model.input], model_combined(merged_output))
-        final_model.compile(loss="mean_squared_error", optimizer="rmsprop")
+        final_model.compile(loss="mean_squared_error", optimizer="adam")
 
         # Print summary
         print(final_model.summary())
@@ -51,11 +51,20 @@ class SkipGramNS_Keras():
         self.model = final_model
     
     def train(self, skip_grams, epochs):
+        # Mini-Batch Gradient Descent
+        first_elem = list(zip(*skip_grams[0][0]))[0]
+        second_elem = list(zip(*skip_grams[0][0]))[1]
+        X = [np.array(first_elem, dtype='int32'), np.array(second_elem, dtype='int32')]
+        Y = np.array(skip_grams[0][1])
+        self.model.fit(X, Y, batch_size=32, epochs=epochs, verbose=2, validation_split=0.2)
+        
+        """
         for epoch in range(0, epochs):
             loss = 0
             for i, elem in enumerate(skip_grams):
                 pair_first_elem = np.array(
-                    list(zip(*elem[0]))[0], dtype='int32')
+            
+        X = list(        list(zip(*elem[0]))[0], dtype='int32')
                 pair_second_elem = np.array(
                     list(zip(*elem[0]))[1], dtype='int32')
                 labels = np.array(elem[1], dtype='int32')
@@ -67,6 +76,7 @@ class SkipGramNS_Keras():
                 loss += self.model.train_on_batch(X, Y)
             print('Epoch:', epoch, 'Loss:', loss)
         return loss
+        """
     
     def evaluate(self, test_data):
         return self.model.predict(test_data)

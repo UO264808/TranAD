@@ -368,7 +368,7 @@ if __name__ == '__main__':
     if not args.test:
         print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
         if model.name in ['SkipGramNS_Keras']:
-            loss, _ = backprop(100, model, skip_grams, trainO, optimizer, scheduler)
+            loss, _ = backprop(5, model, skip_grams, trainO, optimizer, scheduler)
         else:
             num_epochs = 5; e = epoch + 1; start = time()
             for e in tqdm(list(range(epoch+1, epoch+num_epochs+1))):
@@ -404,6 +404,8 @@ if __name__ == '__main__':
         yt_perplex = estimate_perplexity(yt_pred)
         y_perplex = estimate_perplexity(y_pred)
         result, pred = pot_eval(yt_perplex, y_perplex, labelsFinal)
+        print('ytperplex -> mean:{}º   min:{}  max:{}'.format(yt_perplex.mean(), yt_perplex.min(), yt_perplex.max()))
+        print('yperplex -> mean:{}º   min:{}  max:{}'.format(y_perplex.mean(), y_perplex.min(), y_perplex.max()))
     else:
         for i in range(loss.shape[1]):
             lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
@@ -415,7 +417,7 @@ if __name__ == '__main__':
         result, _ = pot_eval(lossTfinal, lossFinal, labelsFinal)
         result.update(hit_att(loss, labels))
         result.update(ndcg(loss, labels))
-    print(df)
+        print(df)
     pprint(result)
     # pprint(getresults2(df, result))
     # beep(4)
