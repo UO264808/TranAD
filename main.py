@@ -59,7 +59,7 @@ def load_model(modelname, dims):
     model = model_class(dims).double()
     optimizer = None
     scheduler = None
-    if model.name not in ['SkipGramNS', 'SkipGramNS_Univariate']:
+    if model.name not in ['SkipGramNS', 'SkipGramNS_Univ']:
         # SkipGramNS model requires to define optimizer and sheduler after initialize embeddings 
         optimizer = torch.optim.AdamW(model.parameters() , lr=model.lr, weight_decay=1e-5)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
@@ -310,6 +310,13 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
                 context_word = torch.tensor(data[1][i])
                 y_pred[i] = model(target_word, context_word)
             return None, y_pred
+    elif model.name in ['SkipGramNS_Univ']:
+        if training:
+            loss = model.train(data, epoch)
+            return loss, None
+        else:
+            y_pred = model.evaluate(data)
+            return None, y_pred.squeeze()
     else:
         y_pred = model(data)
         loss = l(y_pred, data)
@@ -341,7 +348,7 @@ if __name__ == '__main__':
         model.init_emb(vocab_size + 1)
         optimizer = torch.optim.SparseAdam(model.parameters(), lr=model.lr)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
-    if model.name in ['SkipGramNS_Univariate']:
+    if model.name in ['SkipGramNS_Univ']:
         skip_grams, trainD, testD, vocab_size = prepare_discretized_data2(trainD, testD, model, labels.shape[1], debug=True)
         
     ### Training phase

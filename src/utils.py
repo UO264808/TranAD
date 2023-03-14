@@ -87,11 +87,15 @@ def prepare_discretized_data2(train_data, test_data, model, n_feats, debug=False
     # Discretize dataset
     train_test = torch.cat((train_data, test_data), 0)
     full_data, train_data, test_data = simple_discretize_dataset2(train_test, train_length=train_data.shape[0],  n_letters=model.n_letters)
-    
-    
+    vocab_size = model.n_letters
+    train_corpus = dataframe_to_corpus2(train_data)
+    sg = []
+    for i in range(n_feats):
+        skip_grams, word2id, wids, id2word = generate_skipgrams(train_corpus[i], model.n_window, debug=False)
+        sg.append([skip_grams, word2id, wids, id2word])
+
 
     return 0
-
 
 def simple_discretize_dataset(data, train_length, n_letters=5):
     """
@@ -132,9 +136,11 @@ def simple_discretize_dataset2(data, train_length, n_letters=5):
         vfunc = np.vectorize(lambda x: str(chr(65+int((x-min_v)/(max_v-min_v+0.0001)*n_letters))))
         col = vfunc(col)
         dis_data[:, i] = col.squeeze()
+
     data = pd.DataFrame(dis_data)  
     train_data = data.iloc[:train_length]
     test_data = data.iloc[train_length:]
+
     return data, train_data, test_data
 
 def dataframe_to_corpus(data: pd.DataFrame):
@@ -148,6 +154,13 @@ def dataframe_to_corpus(data: pd.DataFrame):
 
         corpus.append(smd_text)
 
+        return corpus
+
+def dataframe_to_corpus2(data: pd.DataFrame):
+        # Convert Dataframe to a large string containing all words
+        corpus = []
+        for i in data.columns:
+            corpus.append(' '.join(data.iloc[:, i].tolist()))
         return corpus
 
 def obtain_vocab_size(corpus, debug=False):

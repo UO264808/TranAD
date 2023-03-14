@@ -7,23 +7,67 @@ import dgl
 from dgl.nn import GATConv
 from torch.nn import TransformerEncoder
 from torch.nn import TransformerDecoder
+import tensorflow as tf
+keras = tf.keras
+from keras.layers import Dense, Embedding, Reshape, dot
+from keras.models import Model, Sequential, load_model
+from keras.preprocessing import text
 from src.dlutils import *
 from src.constants import *
 torch.manual_seed(1)
 
-class SkipGramNS_Univariate(nn.Module):
+class SkipGramNS_Univ(nn.Module):
     def __init__(self, feats) -> None:
-        super(SkipGramNS_Univariate, self).__init__()
-        self.name = 'SkipGramNS_Univariate'
-        self.feats = feats # Standarization purposes
+        super(SkipGramNS_Univ, self).__init__()
+        self.name = 'SkipGramNS_Univ'
+        self.feats = feats
         self.n_window = 7
-        self.lr = 0.05
-        self.embed_size = 38
+        self.embed_size = 100
         self.n_letters = 7
-        #self.models = nn.ModuleList(SGNS_one() for i in range(feats))
+        self.models = []
 
-    def forward(self, x):
-        pass
+    def init_models(self, vocab_size):
+        for i in range(self.feats):
+            word_model = Sequential()
+            word_model.add(Embedding(vocab_size, self.embed_size,
+                                    embeddings_initializer="glorot_uniform",
+                                    input_length=1))
+            word_model.add(Reshape((self.embed_size,)))
+
+            context_model = Sequential()
+            context_model.add(Embedding(vocab_size, self.embed_size,
+                                        embeddings_initializer="glorot_uniform",
+                                        input_length=1))
+            context_model.add(Reshape((self.embed_size,)))
+
+            merged_output = dot([word_model.output, context_model.output], axes=1)
+            model_combined = Sequential()
+            model_combined.add(
+                Dense(1, kernel_initializer="glorot_uniform", activation="sigmoid"))
+            final_model = Model(
+                [word_model.input, context_model.input], model_combined(merged_output))
+            final_model.compile(loss="mean_squared_error", optimizer="adam")
+
+            # Print summary
+            #print(final_model.summary())
+            final_model.name = 'skip_gram_univ_{}'.format(i)
+            self.models.append(final_model)
+    
+    def train(self, skip_grams, epochs):
+        for i in range(self.feats):
+            sg = skip_grams[i]
+            first_elem = list(zip(*sg[0][0]))[0]
+            second_elem = list(zip(*sg[0][0]))[1]
+            X = [np.array(first_elem, dtype='int32'), np.array(second_elem, dtype='int32')]
+            Y = np.array(sg[0][1])
+            self.models[i].fit(X, Y, batch_size=32, epochs=epochs, verbose=2, validation_split=0.2)
+
+    def evaluate(self, test_data):
+        results = []
+        for i in range(self.feats):
+            data = test_data[i]
+            results.append(self.models[i].predict(data)) 
+        return results
 
 
 ## Word2Vec model designed to procces pairs of words (discretize)

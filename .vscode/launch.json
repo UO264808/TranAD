@@ -24,7 +24,7 @@
             "justMyCode": true,
             "args": [
                 "--model",
-                "SkipGramNS_Univariate",
+                "SkipGramNS_Univ",
                 "--dataset",
                 "SMD",
                 "--retrain",
