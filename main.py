@@ -24,17 +24,17 @@ def convert_to_windows(data, model):
         windows.append(w if 'TranAD' in args.model or 'Attention' in args.model else w.view(-1))
     return torch.stack(windows)
 
-def load_dataset(dataset):
+def load_dataset(dataset, subdataset):
     folder = os.path.join(output_folder, dataset)
     if not os.path.exists(folder):
         raise Exception('Processed Data not found.')
     loader = []
     for file in ['train', 'test', 'labels']:
-        if dataset == 'SMD': file = 'machine-1-1_' + file
-        if dataset == 'SMAP': file = 'P-1_' + file
-        if dataset == 'MSL': file = 'C-1_' + file
-        if dataset == 'UCR': file = '136_' + file
-        if dataset == 'NAB': file = 'ec2_request_latency_system_failure_' + file
+        if dataset == 'SMD': file = subdataset + '_' + file
+        if dataset == 'SMAP': file = subdataset + '_' + file
+        if dataset == 'MSL': file = subdataset + '_' + file
+        if dataset == 'UCR': file = subdataset + '_' + file
+        if dataset == 'NAB': file = subdataset + '_' + file
         loader.append(np.load(os.path.join(folder, f'{file}.npy')))
     # loader = [i[:, debug:debug+1] for i in loader]
     if args.less: loader[0] = cut_array(0.2, loader[0])
@@ -342,7 +342,7 @@ if __name__ == '__main__':
     np.random.seed(1)
 
     ## Load data and model
-    train_loader, test_loader, labels = load_dataset(args.dataset)
+    train_loader, test_loader, labels = load_dataset(args.dataset, args.subdataset)
     if args.model in ['MERLIN']:
         eval(f'run_{args.model.lower()}(test_loader, labels, args.dataset)')
     model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1])

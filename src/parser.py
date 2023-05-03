@@ -13,6 +13,12 @@ parser.add_argument('--model',
 					required=False,
 					default='LSTM_Multivariate',
                     help="model name")
+parser.add_argument('--subdataset',
+                    metavar='-sd',
+                    type=str,
+                    required=False,
+                    default='machine-1-1',
+                    help="subdataset selection")
 parser.add_argument('--test', 
 					action='store_true', 
 					help="test the model")

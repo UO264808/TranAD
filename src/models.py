@@ -20,7 +20,7 @@ class SkipGramNS_Keras():
         self.name = 'SkipGramNS_Keras'
         self.feats = feats
         self.n_window = 7
-        self.embed_size = 38
+        self.embed_size = 300
         self.n_letters = 7
         self.model = None
 
@@ -32,7 +32,7 @@ class SkipGramNS_Keras():
         word_model.add(Reshape((self.embed_size,)))
 
         context_model = Sequential()
-        context_model.add(Embedding(vocab_size+1, self.embed_size,
+        context_model.add(Embedding(vocab_size, self.embed_size,
                                     embeddings_initializer="glorot_uniform",
                                     input_length=1))
         context_model.add(Reshape((self.embed_size,)))
