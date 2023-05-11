@@ -48,7 +48,7 @@
             ]
         },
         {
-            "name": "Python: MSCRED SMD less",
+            "name": "Python: MSCRED SMD",
             "type": "python",
             "request": "launch",
             "program": "${file}",
@@ -59,6 +59,8 @@
                 "MSCRED",
                 "--dataset",
                 "SMD",
+                "--subdataset",
+                "machine-1-1",
                 "--retrain",
                 "--less"
             ]

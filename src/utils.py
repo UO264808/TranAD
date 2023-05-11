@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import os
+import random
 from src.constants import *
 import pandas as pd 
 import numpy as np
@@ -240,7 +241,7 @@ def generate_skipgrams(corpus, window_size, debug=False):
 
     # Generate skip-grams
     skip_grams = [
-        skipgrams(wid, vocabulary_size=vocab_size, window_size=window_size) for wid in wids]
+        skipgrams_k(wid, vocabulary_size=vocab_size, window_size=window_size) for wid in wids]
 
     # Show some skip-grams
     if debug:
@@ -257,3 +258,79 @@ def estimate_perplexity(y_pred):
     # Since we are working with pairs of words, this is a bigram
     # High probability will be translated into less perplex
     return (1.0/y_pred)
+
+def skipgrams_k(sequence, vocabulary_size, window_size=4, negative_samples=1.0, shuffle=True, categorical=False, sampling_table=None, seed=None, k=4):
+    """
+    Modification of skipgramns implementation in Keras library.
+    The pairs are generated with a delay of 'k' time units.
+
+    Parameters:
+    -----------
+        sequence: A word sequence (sentence), encoded as a list
+            of word indices (integers). If using a `sampling_table`,
+            word indices are expected to match the rank
+            of the words in a reference dataset (e.g. 10 would encode
+            the 10-th most frequently occurring token).
+            Note that index 0 is expected to be a non-word and will be skipped.
+        vocabulary_size: Int, maximum possible word index + 1
+        window_size: Int, size of sampling windows (technically half-window).
+            The window of a word `w_i` will be
+            `[i - window_size, i + window_size+1]`.
+        negative_samples: Float >= 0. 0 for no negative (i.e. random) samples.
+            1 for same number as positive samples.
+        shuffle: Whether to shuffle the word couples before returning them.
+        categorical: bool. if False, labels will be
+            integers (eg. `[0, 1, 1 .. ]`),
+            if `True`, labels will be categorical, e.g.
+            `[[1,0],[0,1],[0,1] .. ]`.
+        sampling_table: 1D array of size `vocabulary_size` where the entry i
+            encodes the probability to sample a word of rank i.
+        seed: Random seed.
+
+    Returns:
+    --------
+        couples, labels: where `couples` are int pairs and
+            `labels` are either 0 or 1.
+    """
+    couples = []
+    labels = []
+    for i, wi in enumerate(sequence):
+        if not wi:
+            continue
+        if sampling_table is not None:
+            if sampling_table[wi] < random.random():
+                continue
+        if i<k:
+            # Only for initialization in the time series
+            continue
+        wj = sequence[i-k]
+        couples.append([wi, wj])
+        if categorical:
+            labels.append([0, 1])
+        else:
+            labels.append(1)
+
+    if negative_samples > 0:
+        num_negative_samples = int(len(labels) * negative_samples)
+        words = [c[0] for c in couples]
+        random.shuffle(words)
+
+        couples += [
+            [words[i % len(words)], random.randint(1, vocabulary_size - 1)]
+            for i in range(num_negative_samples)
+        ]
+        if categorical:
+            labels += [[1, 0]] * num_negative_samples
+        else:
+            labels += [0] * num_negative_samples
+
+    if shuffle:
+        if seed is None:
+            seed = random.randint(0, 10e6)
+        random.seed(seed)
+        random.shuffle(couples)
+        random.seed(seed)
+        random.shuffle(labels)
+
+    return couples, labels
+
