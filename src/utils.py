@@ -241,7 +241,7 @@ def generate_skipgrams(corpus, window_size, debug=False):
 
     # Generate skip-grams
     skip_grams = [
-        skipgrams_k(wid, vocabulary_size=vocab_size, window_size=window_size) for wid in wids]
+        skipgrams(wid, vocabulary_size=vocab_size, window_size=window_size) for wid in wids]
 
     # Show some skip-grams
     if debug:
@@ -258,6 +258,38 @@ def estimate_perplexity(y_pred):
     # Since we are working with pairs of words, this is a bigram
     # High probability will be translated into less perplex
     return (1.0/y_pred)
+
+def downsampling(data, labels=None, factor=10):
+    # Downsamples data with a given factor
+    data = data.detach().numpy() # Convert from Pytorch tensor to Numpy array
+    i = 0
+    new_data = []
+    new_labels = []
+    while i < data.shape[0]:
+        if i+factor > data.shape[0]:
+            # Special case for last term
+            next = data.shape[0]
+        else:
+            next = i+factor
+
+        new_data.append([np.mean(data[i:next])])
+        
+        if np.where(labels[i:next] == 1)[0].size == 0:
+            # If the array is empty there aren't anomaly points in the interval
+            # so the downsampled data will be normal
+            new_labels.append([0.])
+        else:
+            # If the array is not empty there are anomlay points in the interval
+            # so the downsampled data will be an anomaly
+            new_labels.append([1.])
+        i = next
+
+    # Return Numpy arrays to Pytorch format
+    new_data = torch.from_numpy(np.array(new_data))
+    new_labels = np.array(new_labels)
+
+    return new_data, new_labels
+
 
 def skipgrams_k(sequence, vocabulary_size, window_size=4, negative_samples=1.0, shuffle=True, categorical=False, sampling_table=None, seed=None, k=4):
     """

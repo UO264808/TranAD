@@ -82,6 +82,23 @@
             ]
         },
         {
+            "name": "Python: SkipGramNS_Keras NAB",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--model",
+                "SkipGramNS_Keras",
+                "--dataset",
+                "NAB",
+                "--subdataset",
+                "machine_temperature_system_failure",
+                "--retrain"
+            ]
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

@@ -360,6 +360,7 @@ if __name__ == '__main__':
         optimizer = torch.optim.SparseAdam(model.parameters(), lr=model.lr)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
     if model.name in ['SkipGramNS_Keras']:
+        testD, labels = downsampling(testD, labels, factor=1000)
         # Discretize train/test data and obtain vocabulary size
         skip_grams, trainD, testD, vocab_size = prepare_discretized_data_keras(trainD, testD, model, debug=True)
         model.init_model(vocab_size + 1)
