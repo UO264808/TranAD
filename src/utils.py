@@ -280,28 +280,29 @@ def downsampling(data, labels=None, factor=10):
         # Return Numpy arrays to Pytorch format
         new_data.append(np.array(new_data_col).squeeze())
     
-    j = 0
-    new_labels = []
-    while j < data.shape[0]:
-        if j+factor > data.shape[0]:
-            # Special case for last term
-            next = data.shape[0]
-        else:
-            next = j+factor  
+    if labels is not None:
+        j = 0
+        new_labels = []
+        while j < data.shape[0]:
+            if j+factor > data.shape[0]:
+                # Special case for last term
+                next = data.shape[0]
+            else:
+                next = j+factor  
 
-        if np.where(labels[j:next] == 1)[0].size == 0:
-            # If the array is empty there aren't anomaly points in the interval
-            # so the downsampled data will be normal
-            new_labels.append([0.])
-        else:
-            # If the array is not empty there are anomlay points in the interval
-            # so the downsampled data will be an anomaly
-            new_labels.append([1.])
-        j = next    
-
+            if np.where(labels[j:next] == 1)[0].size == 0:
+                # If the array is empty there aren't anomaly points in the interval
+                # so the downsampled data will be normal
+                new_labels.append([0.])
+            else:
+                # If the array is not empty there are anomlay points in the interval
+                # so the downsampled data will be an anomaly
+                new_labels.append([1.])
+            j = next    
+        new_labels = np.array(new_labels)
+        
     # Return Numpy arrays to Pytorch format
     new_data = torch.from_numpy(np.array(new_data)).T
-    new_labels = np.array(new_labels)
     print("[+] DEBUG: New shape = " + str(new_data.shape[0]))
     
     return new_data, new_labels
