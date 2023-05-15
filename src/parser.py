@@ -19,6 +19,12 @@ parser.add_argument('--subdataset',
                     required=False,
                     default='machine-1-1',
                     help="subdataset selection")
+parser.add_argument('--downsampling_rate',
+                    metavar='-dw',
+                    type=int,
+                    required=False,
+                    default=10,
+                    help="downsampling rate parameter")
 parser.add_argument('--test', 
 					action='store_true', 
 					help="test the model")

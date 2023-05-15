@@ -99,6 +99,23 @@
             ]
         },
         {
+            "name": "Python: SkipGramNS_Keras MBA",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--model",
+                "SkipGramNS_Keras",
+                "--dataset",
+                "MBA",
+                "--downsampling_rate",
+                "1000",
+                "--retrain"
+            ]
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

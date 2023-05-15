@@ -260,21 +260,36 @@ def estimate_perplexity(y_pred):
     return (1.0/y_pred)
 
 def downsampling(data, labels=None, factor=10):
+    print("[+] DEBUG: factor = " + str(factor))
     # Downsamples data with a given factor
     data = data.detach().numpy() # Convert from Pytorch tensor to Numpy array
-    i = 0
     new_data = []
+    # Iterate over all columns if the time series is multivariate
+    for col in range(0, data.shape[1]):
+        i = 0
+        new_data_col = []
+        while i < data.shape[0]:
+            if i+factor > data.shape[0]:
+                # Special case for last term
+                next = data.shape[0]
+            else:
+                next = i+factor
+
+            new_data_col.append([np.mean(data[i:next][col])])
+            i = next
+        # Return Numpy arrays to Pytorch format
+        new_data.append(np.array(new_data_col).squeeze())
+    
+    j = 0
     new_labels = []
-    while i < data.shape[0]:
-        if i+factor > data.shape[0]:
+    while j < data.shape[0]:
+        if j+factor > data.shape[0]:
             # Special case for last term
             next = data.shape[0]
         else:
-            next = i+factor
+            next = j+factor  
 
-        new_data.append([np.mean(data[i:next])])
-        
-        if np.where(labels[i:next] == 1)[0].size == 0:
+        if np.where(labels[j:next] == 1)[0].size == 0:
             # If the array is empty there aren't anomaly points in the interval
             # so the downsampled data will be normal
             new_labels.append([0.])
@@ -282,12 +297,13 @@ def downsampling(data, labels=None, factor=10):
             # If the array is not empty there are anomlay points in the interval
             # so the downsampled data will be an anomaly
             new_labels.append([1.])
-        i = next
+        j = next    
 
     # Return Numpy arrays to Pytorch format
-    new_data = torch.from_numpy(np.array(new_data))
+    new_data = torch.from_numpy(np.array(new_data)).T
     new_labels = np.array(new_labels)
-
+    print("[+] DEBUG: New shape = " + str(new_data.shape[0]))
+    
     return new_data, new_labels
 
 
