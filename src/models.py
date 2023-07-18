@@ -81,7 +81,8 @@ class SkipGramNS_Keras():
     def evaluate(self, test_data):
         return self.model.predict(test_data)
 
-## Word2Vec model designed to procces pairs of words (discretize)
+## Word2Vec model designed with Pytorch to procces pairs of words (discretize)
+## DO NOT USE, results were obtained with SkipGramNS_Keras
 class SkipGramNS(nn.Module):
     def __init__(self, feats) -> None:
         super(SkipGramNS, self).__init__()

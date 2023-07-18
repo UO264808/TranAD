@@ -10,6 +10,11 @@ from tqdm import tqdm
 torch.manual_seed(1)
 
 class SkipGramNS(nn.Module):
+    """
+    Skip-Gram Negative Sampling implementation with Pytorch library.
+    DO NOT USE with experiments, only testing purposes.
+    Only use with the inner main in this file.
+    """
     def __init__(self, vocab_size, embed_size) -> None:
         super(SkipGramNS, self).__init__()
         self.name = 'SkipGramNS'
